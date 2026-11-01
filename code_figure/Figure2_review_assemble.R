@@ -7,7 +7,7 @@ dir.create(out,recursive=TRUE,showWarnings=FALSE)
 theme_set(theme_classic(base_size=8,base_family="Arial"))
 cols_lineage<-c(Myeloid="#0072B5",Tumor="#D94F4F",Lymphoid="#00A087",Glial="#AD8BC9",Stromal="#EFC000")
 cols_idh<-c(IDHwt="#D94F4F",IDHmt="#233B8B")
-grade_colors <- c(G2="lightblue",G3="orange",G4="firebrick3")
+grade_colors <- c("Grade 2"="lightblue", "Grade 3"="orange", "Grade 4"="firebrick3")
 cols_diagnosis <- c(Astrocytoma="#BC3C29",Glioblastoma="#0072B5",Oligodendroglioma="#E18727")
 wrap_panel<-function(p,label){ggdraw()+draw_plot(p,x=.05,y=.03,width=.94,height=.94)+draw_label(label,x=.015,y=.985,hjust=0,vjust=1,fontface="bold",size=10,fontfamily="Arial")}
 add_bracket<-function(p,x1,x2,y,label){p+annotate("segment",x=x1,xend=x2,y=y,yend=y,linewidth=.3)+annotate("segment",x=x1,xend=x1,y=y,yend=y/1.15,linewidth=.3)+annotate("segment",x=x2,xend=x2,y=y,yend=y/1.15,linewidth=.3)+annotate("text",x=(x1+x2)/2,y=y*1.06,label=label,size=2.5)}
