@@ -46,6 +46,16 @@ Glioma_Ki67/
 
 ---
 
+
+### Figure regeneration (revision pack)
+
+Tracked plotters under `code_figure/` (cluster absolute inputs remain under `revision/`):
+
+- `Figure2_review_assemble.R` — full Fig2 assembly; **Fig2B** left/right boxplots share log y-limits, identical 45° x labels, and cowplot `align="hv"` / `axis="tblr"` so baselines match. Vector `cairo_pdf` + 600 dpi PNG.
+- `FigureS5_integration_diagnostics.R`, `FigureS6_Ki67_threshold_sensitivity.R`, `FigureS7_Ki67_definition_comparison.R` — supplementary diagnostics; **no under-plot caption strips** (captions stay in Word). Arial requested; cluster embeds Liberation Sans (Arial-metric).
+
+Delivery copies (cluster): `revision/delivery_figures_YYYYMMDD/`.
+
 ## Installation & Prerequisites
 
 The analyses are executed in **R (>= 4.3.0)**. Essential R dependencies include:
