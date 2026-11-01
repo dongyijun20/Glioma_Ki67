@@ -1,0 +1,44 @@
+# R / IDE
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Large / local data & results (keep scripts only in git)
+data/
+results/
+figures/
+figure_v2/
+GDCdata/
+logs/
+omnipathr-log/
+*.rds
+*.RData
+*.h5ad
+*.h5
+*.mtx
+*.tsv.gz
+*.csv.gz
+*.tar.gz
+*.zip
+
+# Office / manuscripts / secrets / junk
+*.docx
+*.xlsx
+~$*
+*.pdf
+!code_figure/**/*.pdf
+MANIFEST.txt
+review_mapping.json
+log.2
+m9s004832@*/
+
+# UUID scratch dirs and misc
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*/
+TTLL7/
+revision/
+code_figure_v2/
+tables/
+scripts/
+code/

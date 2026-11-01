@@ -98,8 +98,8 @@ pdf("figures/Fig1C.pdf", height = 5, width = 6.5)
 DimPlot(merged_obj, group.by = "Diagnosis") + scale_color_nejm()
 dev.off()
 
-pdf("figures/Sup_Fig1A.pdf", height = 5, width = 6)
-DimPlot(merged_obj, group.by = "Phase_enhanced")
+pdf("figures/Sup_Fig1A.pdf", height = 6, width = 10)
+FeaturePlot(merged_obj, features = c("CD3D","COL1A1","CLDN5","MBP","CD68","CX3CR1"), cols = c("grey","coral"), ncol = 3)
 dev.off()
 
 ## Figure 1D: composition of lineage per sample-------

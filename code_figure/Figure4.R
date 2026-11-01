@@ -38,7 +38,7 @@ lineage_colors <- c(
 )
 
 
-## Figure 4B: ternary plot of three ecotypes-----
+## Figure 4A/B: ternary plot — three dominant-lineage ecotypes (+ SF11488 outlier)-----
 df <- merged_obj@meta.data
 
 ki67_by_patient_filtered <- df %>%
@@ -93,7 +93,8 @@ ternary_data <- ternary_data %>%
       dist_Glial  == pmin(dist_Immune, dist_Tumor, dist_Glial) ~ "Glial-dominant"
     )
   )
-ternary_data$Cluster[ternary_data$Patient=="SF11488"] <- "Stromal-dominant"
+## SF11488: stromal-rich exploratory outlier (NOT a fourth peer ecotype)
+ternary_data$Cluster[ternary_data$Patient=="SF11488"] <- "Stromal-rich outlier"
 
 pdf("figures/Fig4A.pdf",height = 4, width = 5)
 ggtern(data = ternary_data, aes(x = Immune_frac, y = Tumor_frac, z = Glial_frac, color = Cluster)) +
@@ -108,10 +109,10 @@ ggtern(data = ternary_data, aes(x = Immune_frac, y = Tumor_frac, z = Glial_frac,
   scale_color_manual(values = cluster_colors)
 dev.off()
 
-## Figure 4B: four ecotype clustering--------
+## Figure 4B: three proliferative ecotypes + stromal-rich outlier--------
 plot_data$Cluster <- ternary_data$Cluster
 plot_data$Cluster <- factor(plot_data$Cluster, 
-                            levels = c("Tumor-dominant", "Immune-dominant", "Glial-dominant","Stromal-dominant"))
+                            levels = c("Tumor-dominant", "Immune-dominant", "Glial-dominant", "Stromal-rich outlier"))
 
 plot_data$Grade <- factor(plot_data$Grade,
                           levels = c("LGG (II-III)", "GBM (IV)"))
@@ -177,7 +178,7 @@ p_ki67 <- DimPlot(subset_obj, reduction = "umap", group.by = "Ki67_cluster", lab
 plot_list <- list()
 for(e in unique(subset_obj$Ki67_cluster)){
   obj_e <- subset(subset_obj, subset = Ki67_cluster == e)
-  p1 <- DimPlot(obj_e, reduction = "umap", group.by = "lineage", label = TRUE) + ggtitle(paste0(e, " cell types"))
+  p1 <- DimPlot(obj_e, reduction = "umap", group.by = "lineage", label = TRUE, cols = lineage_colors) + ggtitle(paste0(e, " cell types"))
   p2 <- DimPlot(obj_e, reduction = "umap", group.by = "Ki67_status", order = "Ki67+") +
     scale_color_manual(values = c("Ki67+" = "red", "Ki67-" = "grey")) +
     ggtitle(paste0(e, " Ki67+ cells"))
@@ -326,7 +327,7 @@ long_scores <- sample_scores %>%
 long_scores$MP <- factor(long_scores$MP, levels = paste0("MP",1:10))
 
 subset_plot <- long_scores %>%
-  filter(Ki67_cluster != "Stromal-dominant" & MP %in% paste0("MP", c(1, 2, 3, 5, 6, 7, 10))) %>% 
+  filter(Ki67_cluster != "Stromal-rich outlier" & MP %in% paste0("MP", c(1, 2, 3, 5, 6, 7, 10))) %>% 
   mutate(score = as.numeric(as.character(score)))
 
 groups <- as.vector(unique(subset_plot$Ki67_cluster))
@@ -368,4 +369,55 @@ for (i in seq_len(nrow(label_positions))) {
 
 pdf("figures/Fig4F.pdf", height = 8, width = 4.5)
 print(p)
+dev.off()
+
+## Figure 4A------
+validation_data <- ternary_data %>%
+  dplyr::select(Patient, Cluster, Immune_frac, Tumor_frac, Glial_frac) %>%
+  pivot_longer(cols = c(Immune_frac, Tumor_frac, Glial_frac), 
+               names_to = "Component", values_to = "Fraction") %>%
+  mutate(Component = gsub("_frac", "", Component))
+
+validation_data$Cluster <- factor(validation_data$Cluster, levels = c("Tumor-dominant", "Immune-dominant", "Glial-dominant", "Stromal-rich outlier"))
+validation_data$Component <- factor(validation_data$Component, levels = c("Tumor", "Immune", "Glial"))
+
+p_val_box <- ggplot(validation_data, aes(x = Cluster, y = Fraction, fill = Component)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  scale_fill_manual(values = c("Tumor"="#D94F4F", "Immune"="#00A087", "Glial"="#AD8BC9")) + # 使用接近 lineage 的颜色
+  labs(title = "Compositional Validation of Ecotypes", y = "Fraction of Ki67+ Population", x = NULL) +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "top")
+
+## Supp Fig 4B: Clinical Composition of Ecotypes----
+p_grade_bar <- ggplot(plot_data, aes(x = Cluster, fill = Grade)) +
+  geom_bar(position = "fill", width = 0.7) +
+  scale_fill_manual(values = grade_color) +
+  labs(title = "Grade Distribution per Ecotype", y = "Proportion", x = NULL) +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = scales::percent)
+
+pdf("figures/Sup_Fig4A_B.pdf", height = 5, width = 10)
+p_val_box | p_grade_bar
+dev.off()
+
+## Supp Fig 4C: Top Genes of NMF Metaprograms----
+top_genes_list <- lapply(mp.genes, head, 5)
+top_genes_vec <- unlist(top_genes_list)
+top_genes_vec <- unique(top_genes_vec)
+
+merged_obj$all_cells <- "All Cells"
+
+p_dot_nmf <- DotPlot(merged_obj, features = top_genes_vec, group.by = "Ki67_cluster", 
+                     cols = c("lightgrey", "firebrick")) + 
+  RotatedAxis() +
+  labs(title = "Top Marker Genes for Metaprograms (MP1-MP10)", x = "Metaprogram Genes", y = "Ecotype") +
+  theme(axis.text.x = element_text(size = 8))
+
+for(i in 1:9) {
+  p_dot_nmf <- p_dot_nmf + geom_vline(xintercept = i * 5 + 0.5, linetype="dashed", color="grey80")
+}
+
+pdf("figures/Sup_Fig4C.pdf", height = 6, width = 14)
+p_dot_nmf
 dev.off()

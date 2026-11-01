@@ -1,0 +1,5 @@
+Definition=script_composite_union; donors=38; age complete=34; sex complete=36; recurrence complete=38
+Sex Wilcoxon P=0.15360542; group counts=F 28/M 8
+Stage Wilcoxon P=0.83825649; group counts=Primary 26/Recurrent 12
+Age Pearson r=0.36543776; P=0.033563827; n=34
+Union positives (sum P)=23029 / cells (sum N)=256627 (8.9737%)
