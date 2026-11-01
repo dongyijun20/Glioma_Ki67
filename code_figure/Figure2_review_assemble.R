@@ -22,36 +22,45 @@ getpa<-function(a,b)pstar(pa_stats$q[match(paste(a,b,sep="|"),pa_stats$pair)])
 pA<-add_bracket(pA,1,2,.16,getpa("Myeloid","Tumor"));pA<-add_bracket(pA,2,3,.32,getpa("Tumor","Lymphoid"));pA<-add_bracket(pA,2,4,.64,getpa("Tumor","Glial"));pA<-add_bracket(pA,2,5,1.28,getpa("Tumor","Stromal"))
 ge<-read.csv(file.path(indir,"figure2_patient_global_mean_MKI67_final.csv"))
 ge$IDH<-factor(ge$IDH,levels=c("IDHwt","IDHmt"))
-# Fig2B: shared log y-scale + identical x-angle/margins so left/right baselines align
+ge$Diagnosis<-factor(ge$Diagnosis,levels=c("Astrocytoma","Glioblastoma","Oligodendroglioma"))
+kw<-kruskal.test(mean_MKI67~Diagnosis,ge)$p.value
+# Fig2B: single faceted ggplot => identical y-scale, panel height, and baseline
+ge_B<-bind_rows(
+  ge[!is.na(ge$IDH),] |> transmute(Patient, mean_MKI67, x=as.character(IDH), fill=as.character(IDH), panel="IDH status"),
+  ge[!is.na(ge$Diagnosis),] |> transmute(Patient, mean_MKI67, x=as.character(Diagnosis), fill=as.character(Diagnosis), panel="Tumor type")
+)
+ge_B$panel<-factor(ge_B$panel,levels=c("IDH status","Tumor type"))
+ge_B$x<-factor(ge_B$x,levels=c("IDHwt","IDHmt","Astrocytoma","Glioblastoma","Oligodendroglioma"))
+fill_B<-c(cols_idh,cols_diagnosis)
 ylim_B<-c(1e-4,.7)
 ybreaks_B<-c(1e-4,1e-3,1e-2,1e-1)
 ylabels_B<-c("1e-04","1e-03","1e-02","1e-01")
-theme_B_shared<-theme(legend.position="none",
-  axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=8,family="Arial"),
-  axis.text.y=element_text(size=8,family="Arial"),
-  axis.title.y=element_text(size=8,family="Arial"),
-  plot.margin=margin(6,4,2,4))
-pB1<-ggplot(ge[!is.na(ge$IDH),],aes(IDH,pmax(mean_MKI67,1e-4),fill=IDH))+
+p_idh<-wilcox.test(mean_MKI67~IDH,ge,exact=FALSE)$p.value
+ann_bracket<-data.frame(panel=factor("IDH status",levels=levels(ge_B$panel)),x=1,xend=2,y=.28,yend=.28)
+ann_ticks<-data.frame(panel=factor("IDH status",levels=levels(ge_B$panel)),x=c(1,2),y=.28,yend=.28/1.15)
+ann_star<-data.frame(panel=factor("IDH status",levels=levels(ge_B$panel)),x=1.5,y=.28*1.06,lab=pstar(p_idh))
+ann_kw<-data.frame(panel=factor("Tumor type",levels=levels(ge_B$panel)),x=2,y=.38,lab=sprintf("Kruskal-Wallis P = %.3f",kw))
+pB<-ggplot(ge_B,aes(x,pmax(mean_MKI67,1e-4),fill=fill))+
   geom_boxplot(width=.65,outlier.shape=NA,linewidth=.3)+
   geom_jitter(width=.13,size=.7,alpha=.7,shape=21,stroke=.15)+
-  scale_fill_manual(values=cols_idh)+
+  scale_fill_manual(values=fill_B,guide="none")+
   scale_y_log10(limits=ylim_B,breaks=ybreaks_B,labels=ylabels_B,expand=expansion(mult=c(0.02,0.08)))+
-  coord_cartesian(ylim=ylim_B,clip="off")+
-  labs(x=NULL,y=expression("Mean "~italic(MKI67)))+theme_B_shared
-pB1<-add_bracket(pB1,1,2,.28,pstar(wilcox.test(mean_MKI67~IDH,ge,exact=FALSE)$p.value))
-ge$Diagnosis<-factor(ge$Diagnosis,levels=c("Astrocytoma","Glioblastoma","Oligodendroglioma"))
-kw<-kruskal.test(mean_MKI67~Diagnosis,ge)$p.value
-pB2<-ggplot(ge[!is.na(ge$Diagnosis),],aes(Diagnosis,pmax(mean_MKI67,1e-4),fill=Diagnosis))+
-  geom_boxplot(width=.65,outlier.shape=NA,linewidth=.3)+
-  geom_jitter(width=.13,size=.7,alpha=.7,shape=21,stroke=.15)+
-  scale_fill_manual(values=cols_diagnosis)+
-  scale_y_log10(limits=ylim_B,breaks=ybreaks_B,labels=ylabels_B,expand=expansion(mult=c(0.02,0.08)))+
-  coord_cartesian(ylim=ylim_B,clip="off")+
-  labs(x=NULL,y=NULL)+
-  annotate("text",x=2,y=.38,label=sprintf("Kruskal-Wallis P = %.3f",kw),size=2.1,family="Arial")+
-  theme_B_shared+theme(axis.title.y=element_blank())
-pB_grid<-cowplot::plot_grid(pB1,pB2,ncol=2,rel_widths=c(1,1.35),align="hv",axis="tblr")
-pB<-cowplot::ggdraw(pB_grid)+cowplot::draw_label("MKI67 expression across IDH status and tumor types",x=.5,y=.995,hjust=.5,vjust=1,fontfamily="Arial",size=8)
+  facet_grid(~panel,scales="free_x",space="free_x")+
+  geom_segment(data=ann_bracket,aes(x=x,xend=xend,y=y,yend=yend),inherit.aes=FALSE,linewidth=.3)+
+  geom_segment(data=ann_ticks,aes(x=x,xend=x,y=y,yend=yend),inherit.aes=FALSE,linewidth=.3)+
+  geom_text(data=ann_star,aes(x=x,y=y,label=lab),inherit.aes=FALSE,size=2.5,family="Arial")+
+  geom_text(data=ann_kw,aes(x=x,y=y,label=lab),inherit.aes=FALSE,size=2.1,family="Arial")+
+  labs(title="MKI67 expression across IDH status and tumor types",x=NULL,y=expression("Mean "~italic(MKI67)))+
+  theme(legend.position="none",
+        plot.title=element_text(hjust=.5,size=8,family="Arial"),
+        strip.background=element_blank(),
+        strip.text=element_blank(),
+        axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=8,family="Arial"),
+        axis.text.y=element_text(size=8,family="Arial"),
+        axis.title.y=element_text(size=8,family="Arial"),
+        panel.spacing=unit(1.1,"lines"),
+        plot.margin=margin(6,6,2,6))
+
 gC<-ge[ge$IDH=="IDHmt" & ge$TumorGrade %in% c("G2","G3"),];gC$TumorGrade<-factor(gC$TumorGrade,levels=c("G2","G3"),labels=c("Grade 2","Grade 3"))
 pC<-ggplot(gC,aes(TumorGrade,pmax(mean_MKI67,1e-4),fill=TumorGrade))+geom_boxplot(width=.62,outlier.shape=NA,linewidth=.3)+geom_jitter(width=.12,size=.85,alpha=.7,shape=21,stroke=.15)+scale_fill_manual(values=grade_colors)+scale_y_log10(limits=c(1e-4,.4))+labs(title=expression(italic(MKI67)~"expression across grades in IDHmt glioma"),x=NULL,y=expression("Mean "~italic(MKI67)))+theme(legend.position="none",plot.title=element_text(hjust=.5,size=8),plot.margin=margin(10,20,5,14))
 pC<-add_bracket(pC,1,2,.18,"ns")
