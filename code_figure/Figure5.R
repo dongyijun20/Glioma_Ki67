@@ -107,7 +107,7 @@ ggsurvplot(
 dev.off()
 
 ## Figure 5C: TCGA IDHmt Subgroup-----
-tcga_lgg <- meta_combined %>% filter(c)
+tcga_lgg <- meta_combined %>% filter(IDH.status == "Mutant")
 
 fit_tcga_lgg <- survfit(Surv(OS_time_months, OS_status) ~ group, data = tcga_lgg)
 
@@ -293,7 +293,9 @@ analyze_lineage <- function(file_path) {
     dplyr::mutate(sample_id = gsub("\\.", "-", rownames(.))) %>%
     dplyr::select(sample_id, MKI67)
   
-  merged_data <- merge(meta_combined, exp_data, by = "sample_id")
+  # Expression columns were shortened to TCGA patient barcodes (see Figure 5A).
+  # meta_combined carries that id as `patient`, not `sample_id`.
+  merged_data <- merge(meta_combined, exp_data, by.x = "patient", by.y = "sample_id")
   mki67_values <- merged_data$MKI67[!is.na(merged_data$MKI67) & merged_data$MKI67 != 1]
   
   if (length(mki67_values) == 0) {

@@ -79,7 +79,9 @@ celltypes_minor_order <- c(
   "oligodendrocytes"
 )
 
-merged_obj$celltypes_minor <- factor(merged_obj$celltypes_minor, levels = celltypes_minor_order)
+if (!is.null(merged_obj)) {
+  merged_obj$celltypes_minor <- factor(merged_obj$celltypes_minor, levels = celltypes_minor_order)
+}
 
 celltypes_color <- ArchRPalettes$stallion[1:length(celltypes_minor_order)]
 names(celltypes_color) <- celltypes_minor_order
@@ -110,7 +112,11 @@ location_color <- c(
 
 ## Figure 3A: Ki67+ fraction with clinical data--------
 min_cells <- 10
-df <- merged_obj@meta.data
+# Metadata-only runs have no Seurat object. When the object is loaded, its
+# meta.data is the table the panels below were written against.
+if (!is.null(merged_obj)) {
+  df <- merged_obj@meta.data
+}
 
 ki67_by_patient_filtered <- df %>%
   filter(!is.na(lineage)) %>%
@@ -129,9 +135,16 @@ global_ki67 <- df %>%
   group_by(Patient) %>%
   dplyr::summarise(Global_Ki67 = mean(Ki67_Positive, na.rm = TRUE) * 100)
 
+.fig3_cmd <- commandArgs(trailingOnly = FALSE)
+.fig3_file <- sub("^--file=", "", .fig3_cmd[grep("^--file=", .fig3_cmd)])
+.fig3_dir <- if (length(.fig3_file)) dirname(normalizePath(.fig3_file)) else "code_figure"
+source(file.path(.fig3_dir, "collapse_patient_meta.R"))
 meta <- df %>%
-  dplyr::select(Patient, Age, Sex, Grade, Stage, Location, IDH, MGMT.status, Diagnosis, batch) %>%
-  distinct()
+  dplyr::select(Patient, Age, Sex, Grade, Stage, Location, IDH, MGMT.status, Diagnosis, batch)
+# distinct() is not one-row-per-donor after LGG-04-1/2/3 are merged: batch and
+# location still differ, factor(Patient, levels = Patient) errors, and clinical
+# tests would count that donor once per leftover row.
+meta <- collapse_patient_meta(meta)
 
 patient_cells <- table(df$Patient)
 tumor_cells <- table(df$lineage,df$Patient)
@@ -481,7 +494,9 @@ if (file.exists(metrics_csv) && file.exists(donor_meta_csv)) {
 
   pearson_text <- sprintf("Pearson r = %.2f, P = %.3g, n = %d",
                           unname(ct$estimate), ct$p.value, nrow(age))
-  pC <- ggplot(age, aes(x = Age_num, y = global_fraction * 100, color = IDH.x)) +
+  # merge() suffixes IDH only when donor metadata also has that column.
+  idh_col <- if ("IDH.x" %in% names(age)) age$IDH.x else age$IDH
+  pC <- ggplot(age, aes(x = Age_num, y = global_fraction * 100, color = idh_col)) +
     geom_point(size = 2, alpha = 0.8) +
     geom_smooth(aes(x = Age_num, y = global_fraction * 100), inherit.aes = FALSE,
                 method = "loess", formula = y ~ x, se = TRUE, color = "#555555") +
