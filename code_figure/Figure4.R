@@ -23,6 +23,9 @@ library(viridis)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(UCell)
+library(grid)
+library(circlize)
+library(ComplexHeatmap)
 
 ## color
 grade_color <- c("LGG (II-III)" = "navy", "GBM (IV)" = "firebrick3")
@@ -55,9 +58,16 @@ global_ki67 <- ki67_by_patient_filtered %>%
   group_by(Patient) %>%
   dplyr::summarise(Global_Ki67 = sum(cell_count), .groups = "drop")
 
+.fig4_cmd <- commandArgs(trailingOnly = FALSE)
+.fig4_file <- sub("^--file=", "", .fig4_cmd[grep("^--file=", .fig4_cmd)])
+.fig4_dir <- if (length(.fig4_file)) dirname(normalizePath(.fig4_file)) else "code_figure"
+source(file.path(.fig4_dir, "collapse_patient_meta.R"))
 meta <- df %>%
-  dplyr::select(Patient, Age, Sex, Grade, Stage, Location, IDH, MGMT.status, Diagnosis, batch) %>%
-  distinct()
+  dplyr::select(Patient, Age, Sex, Grade, Stage, Location, IDH, MGMT.status, Diagnosis, batch)
+# One row per donor. Multi-region LGG-04 still differs by batch and location,
+# so keeping every metadata row repeats that donor, the patient factor errors
+# on duplicated levels, and the lineage join plots the donor once per leftover row.
+meta <- collapse_patient_meta(meta)
 
 plot_data <- meta %>%
   left_join(global_ki67, by = "Patient") %>%
@@ -95,6 +105,14 @@ ternary_data <- ternary_data %>%
   )
 ## SF11488: stromal-rich exploratory outlier (NOT a fourth peer ecotype)
 ternary_data$Cluster[ternary_data$Patient=="SF11488"] <- "Stromal-rich outlier"
+
+ecotype_levels <- c(
+  "Tumor-dominant", "Immune-dominant", "Glial-dominant", "Stromal-rich outlier"
+)
+cluster_colors <- setNames(
+  brewer.pal(length(ecotype_levels), "Set2"),
+  ecotype_levels
+)
 
 pdf("figures/Fig4A.pdf",height = 4, width = 5)
 ggtern(data = ternary_data, aes(x = Immune_frac, y = Tumor_frac, z = Glial_frac, color = Cluster)) +
@@ -134,8 +152,6 @@ annotation_col <- annotation_col[col_order, ]
 
 gaps <- cumsum(table(plot_data$Cluster[order(plot_data$Cluster)]))
 
-cluster_colors <- brewer.pal(length(levels(plot_data$Cluster)), "Set2")
-names(cluster_colors) <- levels(plot_data$Cluster)
 annotation_colors <- list(
   Grade = grade_color,
   Cluster = cluster_colors
